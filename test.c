@@ -19,6 +19,8 @@ int main ( void ) {
 
         meta_compose( value, buffer, sizeof( buffer ) );
 
+        meta_free( value );
+
         printf( "Composed:\n%s\n", buffer );
 
         return 0;

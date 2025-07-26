@@ -53,10 +53,13 @@ typedef struct meta_value {
 
 #include <stdlib.h>
 
+/* Parse a string into meta_value */
 META_EXTERN meta_value meta_parse_string ( const char *string );
 
+/* Convert meta_value into a string */
 META_EXTERN void meta_compose ( meta_value value, char *dest, size_t dest_len );
 
+/* Free meta_value. Some variants need this to not leak memory */
 META_EXTERN void meta_free ( meta_value value );
 
 #endif /* _META_H */
