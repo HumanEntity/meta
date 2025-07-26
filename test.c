@@ -23,15 +23,17 @@ int main ( void ) {
                 return -1;
         }
 
-        meta_value more_field = { 0 };
+        meta_value array = { 0 };
 
-        if ( !meta_get_field( &value, "more", &more_field ) ) {
+        if ( !meta_get_field( &value, "whole_lot", &array ) ) {
                 fprintf( stderr, "Failed to fetch field\n" );
                 return -1;
         }
 
-        if ( more_field.type != META_VALUETYPE_INT || more_field.data.integer != 10 ) {
-                fprintf( stderr, "Invalid data\n" );
+        meta_set_nth( &array, meta_array_len( &array ), &(meta_value) { .type = META_VALUETYPE_INT, .data = { .integer = -10 } } );
+
+        if ( !meta_set_field( &value, "whole_lot", &array ) ) {
+                fprintf( stderr, "Failed to set field\n" );
                 return -1;
         }
 

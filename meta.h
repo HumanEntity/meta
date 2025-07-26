@@ -76,6 +76,13 @@ META_EXTERN void meta_free ( meta_value value );
 META_EXTERN bool meta_get_field ( const meta_value *value, const char *field_name, meta_value *field_value );
 META_EXTERN bool meta_set_field ( meta_value *value, const char *field_name, const meta_value *field_value );
 
+/* Array modification utilities */
+META_EXTERN bool meta_get_nth ( const meta_value *value, int idx, meta_value *out );
+/* idx has to smaller or equal (appending) to number of fields present */
+META_EXTERN bool meta_set_nth ( meta_value *value, int idx, meta_value *new_value );
+
+META_EXTERN int meta_array_len ( const meta_value *value );
+
 #endif /* _META_H */
 
 /* Implementation */
@@ -470,6 +477,43 @@ META_EXTERN bool meta_set_field ( meta_value *value, const char *field_name, con
         }
 
         return false;
+}
+
+META_EXTERN bool meta_get_nth ( const meta_value *value, int idx, meta_value *out ) {
+        META_ASSERT( value->type == META_VALUETYPE_ARRAY, "Only arrays support indexing\n" );
+
+        if ( idx >= value->data.array.present ) {
+                return false;
+        }
+
+        *out = *value->data.array.items[idx];
+
+        return true;
+}
+
+META_EXTERN bool meta_set_nth ( meta_value *value, int idx, meta_value *new_val ) {
+        META_ASSERT( value->type == META_VALUETYPE_ARRAY, "Only arrays support indexing\n" );
+
+        /* Allow for appending that's why > not >= */
+        if ( idx > value->data.array.present ) {
+                return false;
+        }
+
+        if ( idx == value->data.array.present ) {
+                ++value->data.array.present;
+                value->data.array.items[idx] = META_MALLOC( sizeof( meta_value ) );
+                *value->data.array.items[idx] = *new_val;
+                return true;
+        }
+
+        *value->data.array.items[idx] = *new_val;
+
+        return false;
+}
+
+META_EXTERN int meta_array_len ( const meta_value *value ) {
+        META_ASSERT( value->type == META_VALUETYPE_ARRAY, "Only arrays have length\n" );
+        return value->data.array.present;
 }
 
 #endif
