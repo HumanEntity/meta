@@ -1,6 +1,8 @@
 #ifndef _META_H
 #define _META_H
 
+#include <stdbool.h>
+
 #define META_MAX_OBJ_FIELDS 128
 #define META_MAX_OBJ_FIELD_LEN 128
 #define META_MAX_STRING_LEN 128
@@ -61,6 +63,10 @@ META_EXTERN void meta_compose ( meta_value value, char *dest, size_t dest_len );
 
 /* Free meta_value. Some variants need this to not leak memory */
 META_EXTERN void meta_free ( meta_value value );
+
+/* Object modification utilities */
+META_EXTERN bool meta_get_field ( const meta_value *value, const char *field_name, meta_value *field_value );
+META_EXTERN bool meta_set_field ( meta_value *value, const char *field_name, const meta_value *field_value );
 
 #endif /* _META_H */
 
@@ -370,6 +376,44 @@ META_EXTERN void meta_free ( meta_value value ) {
 
         break;
         }
+}
+
+META_EXTERN bool meta_get_field ( const meta_value *value, const char *field_name, meta_value *field_value ) {
+        META_ASSERT( value->type == META_VALUETYPE_OBJ, "Only objects support field access\n" );
+
+        int i;
+        for ( i = 0; i < value->data.obj.present; ++i ) {
+                if ( strcmp( value->data.obj.fields[i], field_name ) == 0 ) {
+                        *field_value = *value->data.obj.field_data[i];
+                        return true;
+                }
+        }
+
+        return false;
+}
+
+META_EXTERN bool meta_set_field ( meta_value *value, const char *field_name, const meta_value *new_value ) {
+        META_ASSERT( value->type == META_VALUETYPE_OBJ, "Only objects support field access\n" );
+
+        int i;
+        for ( i = 0; i < value->data.obj.present; ++i ) {
+                if ( strncmp( value->data.obj.fields[i], field_name, META_MAX_OBJ_FIELD_LEN ) == 0 ) {
+                        *value->data.obj.field_data[i] = *new_value;
+                        return true;
+                }
+        }
+
+        if ( value->data.obj.present + 1 < META_MAX_OBJ_FIELDS ) {
+                int new = value->data.obj.present;
+                ++value->data.obj.present;
+                strncpy( value->data.obj.fields[new], field_name, META_MAX_OBJ_FIELD_LEN );
+                value->data.obj.field_data[new] = META_MALLOC( sizeof( meta_value ) );
+                *value->data.obj.field_data[new] = *new_value;
+
+                return true;
+        }
+
+        return false;
 }
 
 #endif
