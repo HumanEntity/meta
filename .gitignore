@@ -1,0 +1,7 @@
+*.o
+*.o.d
+
+.ninja_log
+
+# The test executable
+test

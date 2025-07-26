@@ -1,0 +1,15 @@
+
+ccompiler = gcc
+
+cflags = -Wall -std=c89 -fdiagnostics-color=always -g
+
+rule cc
+    command = $ccompiler $cflags $in -o $out -c -MD -MF $out.d
+    depfile = $out.d
+
+rule link
+    command = $ccompiler $cflags $in -o $out
+
+build test.o: cc test.c
+
+build test: link test.o
