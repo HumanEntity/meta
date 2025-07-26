@@ -6,6 +6,7 @@
 #define META_MAX_OBJ_FIELDS 128
 #define META_MAX_OBJ_FIELD_LEN 128
 #define META_MAX_STRING_LEN 128
+#define META_MAX_ARRAY_LEN 128
 
 #ifndef META_EXTERN
 #define META_EXTERN extern
@@ -24,6 +25,7 @@ typedef enum meta_value_type {
         META_VALUETYPE_INT,
         META_VALUETYPE_STRING,
 
+        META_VALUETYPE_ARRAY,
         /* Like in JSON */
         META_VALUETYPE_OBJ,
         META_VALUETYPE_NULL,
@@ -40,6 +42,11 @@ typedef struct meta_obj {
         int present;
 } meta_obj;
 
+typedef struct meta_array {
+        struct meta_value *items[META_MAX_ARRAY_LEN];
+        int present;
+} meta_array;
+
 /* Basic value type, where it all starts and ends */
 typedef struct meta_value {
         meta_value_type type;
@@ -49,6 +56,7 @@ typedef struct meta_value {
                 int integer;
                 char string[META_MAX_STRING_LEN];
 
+                meta_array array;
                 meta_obj obj;
         } data;
 } meta_value;
@@ -98,6 +106,7 @@ META_EXTERN bool meta_set_field ( meta_value *value, const char *field_name, con
 #include <string.h>
 
 META_STATIC meta_obj _meta_parse_obj ( char **string );
+META_STATIC meta_array _meta_parse_array ( char **string );
 META_STATIC const char *_meta_parse_string ( char **string );
 META_STATIC int _meta_parse_int ( char **string );
 META_STATIC void _meta_parse_null ( char **string );
@@ -138,7 +147,7 @@ META_STATIC bool _meta_is_numeric ( char c ) {
 }
 
 META_STATIC bool _meta_is_alphabetic ( char c ) {
-        return ( c >= 'a' && c <= 'z' ) || ( c >= 'A' && c <= 'Z' );
+        return ( c >= 'a' && c <= 'z' ) || ( c >= 'A' && c <= 'Z' ) || c == '_';
 }
 
 META_STATIC bool _meta_is_alphanumeric ( char c ) {
@@ -175,6 +184,12 @@ META_STATIC meta_value _meta_parse_value ( char **string ) {
                 return (meta_value) {
                     .type = META_VALUETYPE_OBJ,
                     .data = { .obj = _meta_parse_obj( string ) },
+                };
+                break;
+        case '[':
+                return (meta_value) {
+                    .type = META_VALUETYPE_ARRAY,
+                    .data = { .array = _meta_parse_array( string ) },
                 };
                 break;
         case 'n':
@@ -275,16 +290,28 @@ META_STATIC meta_obj _meta_parse_obj ( char **string ) {
         return obj;
 }
 
+META_STATIC meta_array _meta_parse_array ( char **string ) {
+        META_ASSERT( *( ( *string )++ ) == '[', "Expected '[' got '%c'\n", *( *string - 1 ) );
+
+        meta_array array = { 0 };
+
+        _meta_skip_whitespace( string );
+        while ( **string != ']' ) {
+                meta_value val = _meta_parse_value( string );
+                array.items[array.present] = META_MALLOC( sizeof( meta_value ) );
+                *array.items[array.present++] = val;
+                _meta_skip_whitespace( string );
+        }
+
+        META_ASSERT( *( ( *string )++ ) == ']', "Expected ']' got '%c'\n", *( *string - 1 ) );
+        return array;
+}
+
 META_EXTERN meta_value meta_parse_string ( const char *string ) {
 
         char *str = (char *) string;
 
-        meta_obj obj = _meta_parse_obj( &str );
-
-        return (meta_value) {
-            .type = META_VALUETYPE_OBJ,
-            .data = { .obj = obj },
-        };
+        return _meta_parse_value( &str );
 }
 
 /* Composing of the meta_value back to string */
@@ -333,6 +360,27 @@ META_STATIC char *_meta_compose_null ( char *dest, size_t dest_len ) {
         return dest + 4 * sizeof( char );
 }
 
+META_STATIC char *_meta_compose_array ( const meta_array *arr, char *dest, size_t dest_len ) {
+        char *start = dest;
+
+        /* Begin the array */
+        strncat( start, "[ ", dest_len );
+        dest += 2;
+
+        int i;
+        for ( i = 0; i < arr->present; ++i ) {
+                dest = _meta_compose( *arr->items[i], dest, dest_len );
+                strncat( start, " ", dest_len );
+                ++dest;
+        }
+
+        /* Close the array */
+        strncat( start, "]", dest_len );
+        ++dest;
+
+        return dest;
+}
+
 META_STATIC char *_meta_compose ( meta_value value, char *dest, size_t dest_len ) {
         switch ( value.type ) {
         case META_VALUETYPE_INT:
@@ -343,6 +391,9 @@ META_STATIC char *_meta_compose ( meta_value value, char *dest, size_t dest_len 
                 break;
         case META_VALUETYPE_OBJ:
                 return _meta_compose_obj( value.data.obj, dest, dest_len );
+                break;
+        case META_VALUETYPE_ARRAY:
+                return _meta_compose_array( &value.data.array, dest, dest_len );
                 break;
         case META_VALUETYPE_NULL:
                 return _meta_compose_null( dest, dest_len );
@@ -372,9 +423,14 @@ META_EXTERN void meta_free ( meta_value value ) {
                         meta_free( *value.data.obj.field_data[i] );
                         META_FREE( value.data.obj.field_data[i] );
                 }
-        }
-
-        break;
+        } break;
+        case META_VALUETYPE_ARRAY: {
+                int i;
+                for ( i = 0; i < value.data.array.present; ++i ) {
+                        meta_free( *value.data.array.items[i] );
+                        META_FREE( value.data.array.items[i] );
+                }
+        } break;
         }
 }
 

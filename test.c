@@ -5,6 +5,7 @@
 const char *test_meta_source = "(\n"
                                "\ttest: \"Data\"\n"
                                "\tmore: 10\n"
+                               "\twhole_lot: [10 10 10]\n"
                                ")";
 
 int main ( void ) {
