@@ -1,6 +1,5 @@
 #include <stdio.h>
 
-#define META_IMPL
 #include "meta.h"
 
 const char *test_meta_source = "(\n"

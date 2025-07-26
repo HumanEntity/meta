@@ -1,7 +1,7 @@
 
 ccompiler = gcc
 
-cflags = -Wall -std=c89 -fdiagnostics-color=always -g
+cflags = -Wall -std=c89 -fdiagnostics-color=always -g -DMETA_IMPL
 
 rule cc
     command = $ccompiler $cflags $in -o $out -c -MD -MF $out.d

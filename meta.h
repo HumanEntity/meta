@@ -3,6 +3,7 @@
 
 #define META_MAX_OBJ_FIELDS 128
 #define META_MAX_OBJ_FIELD_LEN 128
+#define META_MAX_STRING_LEN 128
 
 #ifndef META_EXTERN
 #define META_EXTERN extern
@@ -44,7 +45,7 @@ typedef struct meta_value {
         /* The actual data */
         union {
                 int integer;
-                const char *string;
+                char string[META_MAX_STRING_LEN];
 
                 meta_obj obj;
         } data;
@@ -52,13 +53,15 @@ typedef struct meta_value {
 
 #include <stdlib.h>
 
-META_EXTERN meta_value meta_load_file ( const char *filename );
 META_EXTERN meta_value meta_parse_string ( const char *string );
 
 META_EXTERN void meta_compose ( meta_value value, char *dest, size_t dest_len );
 
+META_EXTERN void meta_free ( meta_value value );
+
 #endif /* _META_H */
 
+/* Implementation */
 #ifdef META_IMPL
 
 #define META_ASSERT( cond, msg, ... )                                                         \
@@ -69,16 +72,21 @@ META_EXTERN void meta_compose ( meta_value value, char *dest, size_t dest_len );
                 }                                                                             \
         } while ( 0 );
 
+/* Allow for opting out malloc */
+#ifndef META_MALLOC
+#define META_MALLOC( size ) malloc( size )
+#endif
+#ifndef META_REALLOC /* Just for completeness */
+#define META_REALLOC( ptr, new_size ) realloc( ptr, new_size )
+#endif
+#ifndef META_FREE
+#define META_FREE( ptr ) free( ptr )
+#endif
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
 #include <string.h>
-
-/* meta_value meta_load_file ( const char *filename ) {
-        FILE *f = fopen( filename, "r" );
-
-        fclose( f );
-} */
 
 META_STATIC meta_obj _meta_parse_obj ( char **string );
 META_STATIC const char *_meta_parse_string ( char **string );
@@ -139,12 +147,21 @@ META_STATIC void _meta_load_ident ( char **const string, char *dest, ssize_t des
 
 META_STATIC meta_value _meta_parse_value ( char **string ) {
         switch ( **string ) {
-        case '"':
-                return (meta_value) {
+        case '"': {
+                const char *str = _meta_parse_string( string );
+
+                meta_value val = (meta_value) {
                     .type = META_VALUETYPE_STRING,
-                    .data = { .string = _meta_parse_string( string ) },
                 };
-                break;
+                int i;
+
+                for ( i = 0; i < META_MAX_STRING_LEN && str[i] != 0; ++i ) {
+                        val.data.string[i] = str[i];
+                }
+
+                META_FREE( (void *) str );
+                return val;
+        } break;
         case '(':
                 return (meta_value) {
                     .type = META_VALUETYPE_OBJ,
@@ -176,7 +193,7 @@ META_STATIC const char *_meta_parse_string ( char **string ) {
         META_ASSERT( *searching_ptr != '0', "Unterminated string literal\n" );
 
         size_t string_len = searching_ptr - *string;
-        char *parsed = (char *) malloc( sizeof( char ) * string_len );
+        char *parsed = (char *) META_MALLOC( sizeof( char ) * string_len );
 
         strncpy( parsed, *string, string_len );
 
@@ -236,7 +253,7 @@ META_STATIC meta_obj _meta_parse_obj ( char **string ) {
                 META_ASSERT( *( ( *string )++ ) == ':', "Expected ':' got %c\n", *( *string - 1 ) );
                 _meta_skip_whitespace( string );
 
-                obj.field_data[obj.present] = (meta_value *) malloc( sizeof( meta_value ) );
+                obj.field_data[obj.present] = (meta_value *) META_MALLOC( sizeof( meta_value ) );
                 *obj.field_data[obj.present] = _meta_parse_value( string );
 
                 ++obj.present;
@@ -288,7 +305,6 @@ META_STATIC char *_meta_compose_obj ( meta_obj obj, char *dest, size_t dest_len 
                 /* Copy field name */
                 char *field_name = obj.fields[i];
 
-                int j;
                 for ( ; *field_name != 0; ++field_name ) {
                         *( dest++ ) = *field_name;
                 }
@@ -332,6 +348,25 @@ META_STATIC char *_meta_compose ( meta_value value, char *dest, size_t dest_len 
 META_EXTERN void meta_compose ( meta_value value, char *dest, size_t dest_len ) {
         char *end = _meta_compose( value, dest, dest_len );
         *end = 0;
+}
+
+META_EXTERN void meta_free ( meta_value value ) {
+        switch ( value.type ) {
+        case META_VALUETYPE_INT:
+        case META_VALUETYPE_STRING:
+        case META_VALUETYPE_NULL:
+        case META_VALUETYPE_NUM: /* Shouldn't be possible */
+                break;
+        case META_VALUETYPE_OBJ: {
+                int i;
+                for ( i = 0; i < value.data.obj.present; ++i ) {
+                        meta_free( *value.data.obj.field_data[i] );
+                        META_FREE( value.data.obj.field_data[i] );
+                }
+        }
+
+        break;
+        }
 }
 
 #endif
