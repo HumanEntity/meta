@@ -37,9 +37,9 @@ int main ( void ) {
                 return -1;
         }
 
-        meta_compose( value, buffer, sizeof( buffer ) );
+        meta_compose( &value, buffer, sizeof( buffer ) );
 
-        meta_free( value );
+        meta_free( &value );
 
         printf( "Composed:\n%s\n", buffer );
 
