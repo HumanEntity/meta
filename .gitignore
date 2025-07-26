@@ -2,6 +2,8 @@
 *.o.d
 
 .ninja_log
+compile_commands.json
+.cache
 
 # The test executable
 test
