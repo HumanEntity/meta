@@ -1,3 +1,12 @@
+/* Simple meta data format parser and composer. Useful for simple meta data.
+ *
+ * Before #including,
+ *      #define META_IMPL
+ *
+ * in the file you want the implementation to reside.
+ *
+ * To parse a string use meta_parse_string and to compose a string use meta_compose */
+
 #ifndef _META_H
 #define _META_H
 
