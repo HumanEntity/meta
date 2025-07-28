@@ -92,6 +92,21 @@ META_EXTERN bool meta_set_nth ( meta_value *value, int idx, meta_value *new_valu
 
 META_EXTERN int meta_array_len ( const meta_value *value );
 
+/* Some constructors */
+#define meta_new_obj() ( { ( meta_value ){ .type = META_VALUETYPE_OBJ, .data = { 0 } }; } )
+#define meta_new_array() ( { ( meta_value ){ .type = META_VALUETYPE_ARRAY, .data = { 0 } }; } )
+
+#define meta_new_integer( int_data )                                                              \
+        ( {                                                                                       \
+                ( (meta_value) { .type = META_VALUETYPE_INT, .data = { .integer = int_data } } ); \
+        } )
+#define meta_new_string( string_data )                                                 \
+        ( {                                                                            \
+                meta_value string_value = { .type = META_VALUETYPE_STRING };           \
+                strncpy( string_value.data.string, string_data, META_MAX_STRING_LEN ); \
+                string_value;                                                          \
+        } )
+
 #endif /* _META_H */
 
 /* Implementation */

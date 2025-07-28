@@ -30,9 +30,17 @@ int main ( void ) {
                 return -1;
         }
 
-        meta_set_nth( &array, meta_array_len( &array ), &(meta_value) { .type = META_VALUETYPE_INT, .data = { .integer = -10 } } );
+        meta_value i = meta_new_integer( -10 );
+        meta_set_nth( &array, meta_array_len( &array ), &i );
 
         if ( !meta_set_field( &value, "whole_lot", &array ) ) {
+                fprintf( stderr, "Failed to set field\n" );
+                return -1;
+        }
+
+        meta_value str = meta_new_string( "Test string" );
+
+        if ( !meta_set_field( &value, "morestringdata", &str ) ) {
                 fprintf( stderr, "Failed to set field\n" );
                 return -1;
         }
