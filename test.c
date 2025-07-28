@@ -33,7 +33,7 @@ int main ( void ) {
         meta_value i = meta_new_integer( -10 );
         meta_set_nth( &array, meta_array_len( &array ), &i );
 
-        if ( !meta_set_field( &value, "whole_lot", &array ) ) {
+        if ( !meta_set_field( &value, "whole_lot/10", &array ) ) {
                 fprintf( stderr, "Failed to set field\n" );
                 return -1;
         }
